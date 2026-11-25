@@ -1,0 +1,21 @@
+﻿# IntelliJ IDEA
+.idea/
+*.iml
+
+# Java / Maven
+**/target/
+**/out/
+
+# Node.js
+**/node_modules/
+**/dist/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+**/application-local.yml
+
+# Logs
+*.log
+logs/
