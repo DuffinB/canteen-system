@@ -1,0 +1,100 @@
+### 管理员订单查询 HTTP Client 手动测试
+### 需在 IDEA HTTP Client 全局变量中预先有 student_token（order-test.http 使用）。
+### 本文件仅执行只读查询请求；本次未执行。
+
+### 0. 管理员登录并自动保存 JWT 到 IDEA 全局变量
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "studentNo": "admin_test_001",
+  "password": "12345678"
+}
+
+> {%
+  client.global.set("admin_token", response.body.data.token);
+%}
+
+### 1. 管理员分页查询全部订单（不筛选状态）
+GET http://localhost:8080/api/admin/orders?page=1&size=10
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 2. 筛选待确认订单
+GET http://localhost:8080/api/admin/orders?page=1&size=10&status=PENDING
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 3. 筛选已取消订单
+GET http://localhost:8080/api/admin/orders?page=1&size=10&status=CANCELLED
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 4. 查询订单 ID=1 的详情及商品明细快照
+GET http://localhost:8080/api/admin/orders/1
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 5. 查询不存在的订单（预期 RESOURCE_NOT_FOUND）
+GET http://localhost:8080/api/admin/orders/999999
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 6. 使用已有学生 Token 访问管理员订单列表（预期 HTTP 403）
+GET http://localhost:8080/api/admin/orders?page=1&size=10
+Authorization: Bearer {{student_token}}
+Accept: application/json
+
+### 匿名访问管理员订单列表（预期 401）
+GET http://localhost:8080/api/admin/orders?page=1&size=10
+
+### 管理员确认接单
+POST http://localhost:8080/api/admin/orders/3/confirm
+Authorization: Bearer {{admin_token}}
+
+### 查询订单3详情，验证确认接单结果
+GET http://localhost:8080/api/admin/orders/3
+Authorization: Bearer {{admin_token}}
+
+### 重复确认订单3（预期失败）
+POST http://localhost:8080/api/admin/orders/3/confirm
+Authorization: Bearer {{admin_token}}
+
+### 确认不存在的订单（预期404）
+POST http://localhost:8080/api/admin/orders/999999/confirm
+Authorization: Bearer {{admin_token}}
+
+### 学生尝试确认订单3（预期403）
+POST http://localhost:8080/api/admin/orders/3/confirm
+Authorization: Bearer {{student_token}}
+
+### 匿名尝试确认订单3（预期401）
+POST http://localhost:8080/api/admin/orders/3/confirm
+
+### 管理员标记订单3制作完成
+POST http://localhost:8080/api/admin/orders/3/ready
+Authorization: Bearer {{admin_token}}
+
+### 查询订单3，验证制作完成
+GET http://localhost:8080/api/admin/orders/3
+Authorization: Bearer {{admin_token}}
+
+### 重复标记订单3制作完成（预期失败）
+POST http://localhost:8080/api/admin/orders/3/ready
+Authorization: Bearer {{admin_token}}
+
+### 标记不存在的订单制作完成（预期404）
+POST http://localhost:8080/api/admin/orders/999999/ready
+Authorization: Bearer {{admin_token}}
+
+### 学生尝试标记订单3制作完成（预期403）
+POST http://localhost:8080/api/admin/orders/3/ready
+Authorization: Bearer {{student_token}}
+
+### 管理员确认订单3已完成
+POST http://localhost:8080/api/admin/orders/3/complete
+Authorization: Bearer {{admin_token}}
+
+### 查询订单3，验证完成状态和时间
+GET http://localhost:8080/api/admin/orders/3
+Authorization: Bearer {{admin_token}}

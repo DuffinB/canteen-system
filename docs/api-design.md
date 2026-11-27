@@ -1,61 +1,86 @@
 # API 接口设计
 
-## 通用规范
+## 通用约定
 
-基础路径 `/api`，JSON UTF-8；分页 `page` 从 1 开始、`size` 默认 10 最大 100。认证头 `Authorization: Bearer <JWT>`。统一成功 `{ "code":"OK", "message":"成功", "data":{} }`；错误同结构且 data=null。分页 data 为 `records,total,page,size`。HTTP 状态：400 参数错、401 未认证、403 无权限、404 不存在/不可见、409 状态冲突。日期 `YYYY-MM-DD`，时间戳 ISO 8601。客户端不得提供可信价格、金额、用户角色或最终状态。
+- API 前缀为 `/api`，请求和响应均使用 UTF-8 JSON。
+- 成功响应：`{"code":"OK","message":"成功","data":...}`；错误响应保持相同外层结构，`data` 为 `null`。
+- 分页响应字段为 `records`、`total`、`page`、`size`；`page` 从 1 开始，`size` 默认 10，最大 100。
+- 需要登录的请求携带 `Authorization: Bearer <JWT>`。管理员接口仅 ADMIN，购物车、订单和学生评价接口仅 STUDENT。
+- 日期使用 `YYYY-MM-DD`。统计日期范围起止均包含。
 
-## 认证接口
+## 健康检查和认证
 
-| 方法 | 路径 | 权限 | 用途 |
+| 方法 | 路径 | 权限 | 参数/用途 |
 |---|---|---|---|
-| POST | `/auth/register` | 公开 | `{studentNo,password,nickname}`，固定注册学生 |
-| POST | `/auth/login` | 公开 | `{studentNo,password}`，返回 JWT 和基本资料 |
-| GET | `/auth/me` | 已登录 | 当前用户和角色 |
+| GET | `/api/health` | 公开 | 服务健康检查 |
+| POST | `/api/auth/register` | 公开 | JSON：`studentNo`、`password`、`nickname`；注册固定为 STUDENT |
+| POST | `/api/auth/login` | 公开 | JSON：`studentNo`、`password`；返回 JWT 和用户资料 |
+| GET | `/api/auth/me` | 已登录 | 返回当前令牌对应用户资料 |
+| PUT | `/api/users/me` | 已登录 | JSON：`nickname`；只修改当前用户昵称 |
 
-退出由前端删除令牌，不做黑名单。
+## 学生和公开接口
 
-## 学生及公开接口
+| 方法 | 路径 | 权限 | 查询参数/请求体 |
+|---|---|---|---|
+| GET | `/api/categories` | 公开 | 返回启用且未删除分类 |
+| GET | `/api/dishes` | 公开 | 查询参数：`page`、`size`、`categoryId`、`keyword`、`sort`；`sort` 支持 `priceAsc`、`priceDesc`、`latest` |
+| GET | `/api/dishes/hot` | 公开 | 返回已完成订单销量前 10 的在售菜品 |
+| GET | `/api/dishes/{id}` | 公开 | 菜品详情 |
+| GET | `/api/reviews/dish/{dishId}` | 公开 | 查询参数：`page`、`size`；仅返回审核通过评价 |
+| GET | `/api/cart` | STUDENT | 查询当前学生购物车 |
+| POST | `/api/cart/items` | STUDENT | JSON：`dishId`、`quantity` |
+| PUT | `/api/cart/items/{dishId}` | STUDENT | JSON：`quantity`；修改本人购物车中该菜品数量 |
+| DELETE | `/api/cart/items/{dishId}` | STUDENT | 删除本人购物车中该菜品 |
+| POST | `/api/orders` | STUDENT | 必须带 `Idempotency-Key` 请求头；JSON：`pickupDate`、`pickupSlot`（LUNCH/DINNER）、可选 `remark` |
+| GET | `/api/orders` | STUDENT | 查询参数：`page`、`size`、可选 `status`（PENDING/PREPARING/READY/COMPLETED/CANCELLED）；只查询本人订单 |
+| GET | `/api/orders/{id}` | STUDENT | 本人订单详情和明细快照 |
+| PUT | `/api/orders/{id}/cancel` | STUDENT | 仅本人 PENDING 订单可取消 |
+| POST | `/api/orders/{id}/confirm-pickup` | STUDENT | 本人 READY 订单确认取餐 |
+| POST | `/api/reviews` | STUDENT | JSON：`orderId`、`orderItemId`、`dishId`、`rating`、可选 `content` |
+| PUT | `/api/reviews/{id}` | STUDENT | JSON：`rating`、可选 `content`；仅本人且符合完成后 30 天规则的评价可修改，修改后回到 PENDING |
+| GET | `/api/reviews/my` | STUDENT | 查询参数：`page`、`size`；本人评价 |
 
-| 方法 | 路径 | 权限/用途 |
-|---|---|---|
-| GET | `/categories` | 公开启用分类 |
-| GET | `/dishes` | 公开分页；categoryId、keyword、sort 筛选 |
-| GET | `/dishes/{id}` | 公开详情 |
-| GET | `/dishes/hot` | 公开热门前 10 |
-| GET | `/dishes/{id}/reviews` | 公开已审核评价 |
-| GET/POST | `/cart`、`/cart/items` | 学生本人读取/加入购物车 `{dishId,quantity}` |
-| PUT/DELETE | `/cart/items/{id}` | 学生本人改数量/删除 |
-| POST | `/orders` | 学生下单，使用当前全部购物车商品 |
-| GET | `/orders` | 学生本人列表分页，可按状态筛选 |
-| GET | `/orders/{id}` | 学生本人详情 |
-| POST | `/orders/{id}/cancel` | 本人 PENDING 订单取消 |
-| POST | `/orders/{id}/confirm-pickup` | 本人 READY 订单确认完成 |
-| POST | `/orders/{id}/items/{itemId}/reviews` | 完成订单评价 `{rating,content}` |
-| GET/PUT | `/users/me` | 读取/修改本人允许编辑资料 |
-
-下单请求示例：`{ "pickupDate":"2026-11-26", "pickupSlot":"LUNCH", "remark":"少辣" }`，响应头可带 `Idempotency-Key: UUID`，重试复用。后端重新核价、校验库存、预约时间；成功后清空提交商品购物车。首期不支持购物车部分下单。
+订单金额和库存由后端根据数据库重新校验；客户端不能提交用户 ID、价格或总金额。
 
 ## 管理员接口
 
-| 方法 | 路径 | 用途 |
+所有下列接口均要求 ADMIN。
+
+| 方法 | 路径 | 查询参数/请求体 |
 |---|---|---|
-| GET/POST | `/admin/categories` | 分类列表/新增 |
-| PUT/PATCH | `/admin/categories/{id}`、`.../status` | 编辑/启停 |
-| GET/POST | `/admin/dishes` | 菜品列表/新增 |
-| GET/PUT/PATCH | `/admin/dishes/{id}`、`.../status` | 详情/修改（含价格库存）/上下架 |
-| GET | `/admin/orders` | 全部订单分页筛选 |
-| GET | `/admin/orders/{id}` | 订单详情 |
-| POST | `/admin/orders/{id}/confirm` | PENDING→PREPARING |
-| POST | `/admin/orders/{id}/ready` | PREPARING→READY |
-| POST | `/admin/orders/{id}/complete` | READY→COMPLETED |
-| POST | `/admin/orders/{id}/cancel` | 合规则取消并回补库存 |
-| GET/PATCH | `/admin/users`、`/admin/users/{id}/status` | 用户查询/启停 |
-| GET/PATCH | `/admin/reviews`、`/admin/reviews/{id}/moderation` | 评论查询/审核 |
-| GET | `/admin/statistics/summary` | 日期范围订单数、完成数、销售额 |
-| GET | `/admin/statistics/dishes` | 日期范围完成销量排行 |
+| GET | `/api/admin/categories` | 分类列表（含启用/停用状态） |
+| POST | `/api/admin/categories` | JSON：`name`、`sortOrder`；新分类默认启用 |
+| PUT | `/api/admin/categories/{id}` | JSON：`name`、`sortOrder` |
+| PATCH | `/api/admin/categories/{id}/status` | JSON：`status`（1 启用，0 停用） |
+| GET | `/api/admin/dishes` | 查询参数：`page`、`size`、`categoryId`、`keyword`、`sort`、`status` |
+| POST | `/api/admin/dishes` | JSON：`categoryId`、`name`、`description`、`imageUrl`、`price`、`stock` |
+| GET | `/api/admin/dishes/{id}` | 管理员菜品详情 |
+| PUT | `/api/admin/dishes/{id}` | JSON：基本资料 `categoryId`、`name`、`description`、`imageUrl` |
+| PATCH | `/api/admin/dishes/{id}/status` | JSON：`status`（ON_SALE/OFF_SALE） |
+| PATCH | `/api/admin/dishes/{id}/stock` | JSON：`stock` |
+| PATCH | `/api/admin/dishes/{id}/price` | JSON：`price` |
+| DELETE | `/api/admin/dishes/{id}` | 逻辑删除菜品 |
+| GET | `/api/admin/orders` | 查询参数：`page`、`size`、可选 `status` |
+| GET | `/api/admin/orders/{id}` | 订单及商品快照详情 |
+| POST | `/api/admin/orders/{id}/confirm` | PENDING → PREPARING |
+| POST | `/api/admin/orders/{id}/ready` | PREPARING → READY |
+| POST | `/api/admin/orders/{id}/complete` | READY → COMPLETED |
+| POST | `/api/admin/orders/{id}/cancel` | 取消 PENDING、PREPARING 或 READY 订单并回补库存 |
+| GET | `/api/admin/users` | 查询参数：`page`、`size`；不返回密码或密码哈希 |
+| PATCH | `/api/admin/users/{id}/status` | JSON：`status`（1 启用，0 停用）；不能停用当前管理员 |
+| GET | `/api/admin/reviews` | 查询参数：`page`、`size`、可选 `status` |
+| PUT | `/api/admin/reviews/{id}/audit` | JSON：`status`（APPROVED/HIDDEN） |
+| GET | `/api/admin/statistics/summary` | 必填查询参数：`startDate`、`endDate`；返回订单数、完成订单数和完成订单销售额 |
+| GET | `/api/admin/statistics/dishes` | 必填查询参数：`startDate`、`endDate`；按完成时间汇总菜品销量 |
 
-管理员创建通过受控初始化，不开放 API。
+管理员 ID 从 JWT 取得，不从请求体或查询参数接收。
 
-## 错误码
+## 日期统计口径
 
-`VALIDATION_ERROR` 400、`AUTH_REQUIRED` 401、`FORBIDDEN` 403、`RESOURCE_NOT_FOUND` 404、`DUPLICATE_ACCOUNT` 409、`DISH_UNAVAILABLE` 409、`ORDER_STOCK_INSUFFICIENT` 409、`ORDER_STATUS_INVALID` 409、`PICKUP_TIME_INVALID` 400、`REVIEW_NOT_ALLOWED` 409。Service 校验资源归属、订单状态和评价资格；订单接口只允许明确状态迁移。
+订单总数和完成订单数按订单 `created_at` 落在日期范围内统计；完成销售额和菜品销量按 `completed_at` 落在日期范围内统计。日期起止均包含。只统计 COMPLETED 订单的销售额和销量。
+
+用户被管理员停用后，新的登录会被拒绝；此前签发的无状态 JWT 在到期前仍可能有效。本项目当前不提供令牌黑名单或即时撤销机制。
+
+## 错误响应
+
+参数错误返回 400，未认证返回 401，无权限返回 403，资源不存在或不可见返回 404，业务状态冲突返回 409；客户端错误响应不包含堆栈、SQL 或凭据。

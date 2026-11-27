@@ -1,0 +1,39 @@
+### 1. 学生登录：运行成功后自动保存 JWT 到全局变量 student_token
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "studentNo": "test_student_001",
+  "password": "TestPass_12345"
+}
+
+> {%
+  client.global.set("student_token", response.body.data.token);
+%}
+
+### 2. 查询当前登录学生的购物车
+GET http://localhost:8080/api/cart
+Authorization: Bearer {{student_token}}
+
+### 3. 添加菜品到当前登录学生的购物车
+POST http://localhost:8080/api/cart/items
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{
+  "dishId": 1,
+  "quantity": 1
+}
+
+### 修改宫保鸡丁数量为 3
+PUT http://localhost:8080/api/cart/items/1
+Authorization: Bearer {{student_token}}
+Content-Type: application/json
+
+{
+  "quantity": 3
+}
+
+### 删除购物车中的宫保鸡丁
+DELETE http://localhost:8080/api/cart/items/1
+Authorization: Bearer {{student_token}}

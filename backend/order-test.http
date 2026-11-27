@@ -1,0 +1,39 @@
+### 学生提交订单
+POST http://localhost:8080/api/orders
+Authorization: Bearer {{student_token}}
+Idempotency-Key: 9a7c2b10-6d34-4e81-a5f2-123456789abc
+Content-Type: application/json
+
+{
+  "pickupDate": "2026-11-27",
+  "pickupSlot": "LUNCH",
+  "remark": "少辣"
+}
+
+### 使用相同幂等键重复提交订单
+POST http://localhost:8080/api/orders
+Authorization: Bearer {{student_token}}
+Idempotency-Key: 7f8e1c60-8fe2-49a1-9e31-0123456789ab
+Content-Type: application/json
+
+{
+  "pickupDate": "2026-11-27",
+  "pickupSlot": "LUNCH",
+  "remark": "少辣"
+}
+
+### 查询当前学生的订单列表
+GET http://localhost:8080/api/orders?page=1&size=10
+Authorization: Bearer {{student_token}}
+
+### 查询订单详情
+GET http://localhost:8080/api/orders/1
+Authorization: Bearer {{student_token}}
+
+### 取消自己的订单
+PUT http://localhost:8080/api/orders/1/cancel
+Authorization: Bearer {{student_token}}
+
+### 重复取消已经取消的订单
+PUT http://localhost:8080/api/orders/1/cancel
+Authorization: Bearer {{student_token}}

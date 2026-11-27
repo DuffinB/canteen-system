@@ -1,0 +1,12 @@
+### 用户注册 HTTP 手动测试
+### 本文件只定义请求；请在 IntelliJ IDEA HTTP Client 中确认后手动点击请求旁的运行按钮。
+### 每次请求会尝试写入一个用户记录，本次准备工作没有执行该请求。
+
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "studentNo": "test_student_001",
+  "password": "TestPass_12345",
+  "nickname": "注册接口测试用户"
+}

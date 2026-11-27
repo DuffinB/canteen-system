@@ -1,0 +1,5 @@
+### 学生端公开分类列表查询
+### 无需 Authorization Token。仅准备请求，本次未执行。
+
+GET http://localhost:8080/api/categories
+Accept: application/json

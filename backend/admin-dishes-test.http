@@ -1,0 +1,107 @@
+### 管理员菜品管理 HTTP Client 手动测试
+### 需要在 IntelliJ IDEA HTTP Client 提示时提供真实 ADMIN 管理员账号、密码和启用分类 ID。
+### 所有管理请求都会修改数据；DELETE 会逻辑删除菜品。本文件仅准备请求，本次未执行。
+
+### 0. 管理员登录并保存 JWT 到 IDEA 全局变量
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "studentNo": "admin_test_001",
+  "password": "12345678"
+}
+
+> {%
+  client.global.set("admin_token", response.body.data.token);
+%}
+
+### 1. 管理员分页查询菜品（包含下架菜品）
+GET http://localhost:8080/api/admin/dishes?page=1&size=10&sort=latest
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 2. 新增菜品（初始状态为 OFF_SALE）；需使用启用分类 ID
+POST http://localhost:8080/api/admin/dishes
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "name": "HTTP 测试菜品",
+  "description": "管理员接口联调测试",
+  "imageUrl": "https://example.com/test-dish.jpg",
+  "price": 12.50,
+  "stock": 20
+}
+
+> {%
+  client.global.set("dishId", response.body.data.id);
+%}
+
+### 3. 查看新增菜品
+GET http://localhost:8080/api/admin/dishes/{{dishId}}
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+### 4. 修改菜品基本信息（categoryId 必须指向启用分类）
+PUT http://localhost:8080/api/admin/dishes/{{dishId}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "name": "HTTP 测试菜品（已修改）",
+  "description": "已更新介绍",
+  "imageUrl": "https://example.com/test-dish-updated.jpg"
+}
+
+### 5. 上架菜品（所属分类必须启用）
+PATCH http://localhost:8080/api/admin/dishes/{{dishId}}/status
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "status": "ON_SALE"
+}
+
+### 6. 修改库存（必须大于等于0）
+PATCH http://localhost:8080/api/admin/dishes/{{dishId}}/stock
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "stock": 25
+}
+
+### 7. 修改价格（必须非负，最多2位小数）
+PATCH http://localhost:8080/api/admin/dishes/{{dishId}}/price
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "price": 13.00
+}
+
+### 8. 下架菜品
+PATCH http://localhost:8080/api/admin/dishes/{{dishId}}/status
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "status": "OFF_SALE"
+}
+
+### 9. 逻辑删除菜品（谨慎手动执行；不会物理删除数据库记录）
+DELETE http://localhost:8080/api/admin/dishes/{{dishId}}
+Authorization: Bearer {{admin_token}}
+
+### 10. 测试修改菜品价格（验证 13.80）
+
+PATCH http://localhost:8080/api/admin/dishes/1/price
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "price": 18.00
+}

@@ -1,0 +1,28 @@
+### 学生端公开菜品分页查询（无需 JWT）
+GET http://localhost:8080/api/dishes?page=1&size=10&sort=latest
+Accept: application/json
+
+### 按分类筛选菜品
+GET http://localhost:8080/api/dishes?page=1&size=10&categoryId=1&sort=latest
+Accept: application/json
+
+### 按关键词搜索菜品
+GET http://localhost:8080/api/dishes?page=1&size=10&keyword=宫保鸡丁&sort=latest
+Accept: application/json
+
+### 学生端公开菜品详情（无需 JWT）
+### 查询宫保鸡丁详情
+GET http://localhost:8080/api/dishes/1
+Accept: application/json
+
+### 菜品价格升序
+GET http://localhost:8080/api/dishes?page=1&size=10&sort=priceAsc
+Accept: application/json
+
+### 菜品价格降序
+GET http://localhost:8080/api/dishes?page=1&size=10&sort=priceDesc
+Accept: application/json
+
+### 最新创建菜品排序
+GET http://localhost:8080/api/dishes?page=1&size=10&sort=latest
+Accept: application/json
